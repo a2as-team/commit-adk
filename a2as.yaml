@@ -1,0 +1,1040 @@
+manifest:
+  version: "0.1.3"
+  schema: https://a2as.org/cert/schema
+  subject:
+    name: commitgcp/commit-adk
+    source: https://github.com/commitgcp/commit-adk
+    branch: main
+    commit: "0cc2e742"
+    scope: [agents/a2a_orchestrator/agent.py, agents/a2a_orchestrator/host_agent.py, agents/a2a_orchestrator/remote_agent_connection.py,
+      agents/adk_orchestrator/agent.py, agents/adk_orchestrator/tools.py, agents/browser/__main__.py, agents/browser/a2a_agent_wrapper.py,
+      agents/browser/a2a_task_manager.py, agents/browser/agent.py, agents/browser/tools.py, agents/deep_research/__main__.py,
+      agents/deep_research/a2a_agent_wrapper.py, agents/deep_research/a2a_task_manager.py, agents/deep_research/agent.py,
+      agents/google_calendar/a2a_agent_wrapper.py, agents/google_calendar/a2a_task_manager.py, agents/google_calendar/agent.py,
+      agents/google_calendar/tools.py, agents/hello_adk/agent.py, agents/linkedin/a2a_agent_wrapper.py, agents/linkedin/a2a_task_manager.py,
+      agents/linkedin/agent.py, agents/linkedin/tools.py, agents/notion/__main__.py, agents/notion/a2a_agent_wrapper.py, agents/notion/a2a_task_manager.py,
+      agents/notion/agent.py, agents/notion/tools.py, agents/python_developer/a2a_agent_wrapper.py, agents/python_developer/a2a_task_manager.py,
+      agents/python_developer/agent.py, common/client/__init__.py, common/types.py]
+  issued:
+    by: A2AS.org
+    at: '2026-02-11T16:43:17Z'
+    url: https://a2as.org/certified/agents/commitgcp/commit-adk
+  signatures:
+    digest: sha256:-7bqTD71_mCTrwXjnjAtnfbvpSleHi1F0DBbnojrJWs
+    key: ed25519:2siNZcIJYODvkUR0HwOE9ml1rvQu2RGxAL--605_eqM
+    sig: ed25519:q77TJ8qluxGnKg1R5rByR3H7KNlSFEYWosGcIAUk6QcHvNBo1Zt4u3Pl59pZ92hpJ3NNABTMWr9i9o2FBd01Bw
+
+agents:
+  agent:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [agent_tool, agent_tool]
+    params:
+      name: root_agent
+      description: Orchestrator agent that uses the other agents to complete the user's request
+      instruction: ['You are a master orchestrator agent responsible for understanding user requests, devising execution plans,
+          and coordinating specialized sub-agents and tools to fulfill those requests robustly.', 'Your primary goal is to
+          successfully complete the user''s request by leveraging the available capabilities. Follow these steps:', '1.  **Analyze
+          the Request:** Carefully examine the user''s request to understand the core intent, required actions, and any implicit
+          context. Note keywords and entities (like names, dates, calendar names).', '3.  **Ask for Clarification (*Only if
+          Necessary*):** If, *and only if*, the attempt in step 2 failed (e.g., `GetCalendarsInfo` didn''t return a clear
+          match for the requested name, or the request remains ambiguous after analysis), *then* proactively ask the user
+          for the specific missing information or clarification *before* proceeding with the main task. Do not ask for the
+          Notion parent ID unless the user explicitly mentions placing content outside the default "Agent Collection" page.',
+        '4.  **Handle Unfulfillable Requests:** If a request seems truly unfulfillable even after attempting to combine tools
+          or gather more information (including asking the user as a last resort), clearly inform the user what was attempted
+          and why it cannot be completed.', '5.  **Devise a Plan:** Break the request down into logical tasks, including any
+          preliminary information-gathering steps identified and *attempted* in step 2. Identify the best agent or tool for
+          each task.', '*   **Notion Page Creation:** If the plan involves creating a new company/topic page in Notion:',
+        '*   Assume the parent page is the default "Agent Collection" (''1f123395-cca1-8095-b302-cbb724f3dc2b'') unless the
+          user specifies otherwise.', '*   Instruct the `notion_agent` to *first* use `API-get-block-children` on the parent
+          page ID (''1f123395-cca1-8095-b302-cbb724f3dc2b'') to check if a child page with the exact target name already exists.',
+        '*   If it exists, use that existing page''s ID for subsequent actions (like creating subpages or adding content).',
+        '*   If it does not exist, instruct the `notion_agent` to create the new page under the default parent.', '6.  **Present
+          the Plan (for complex tasks):** Present multi-step/multi-agent plans for approval. Explain preliminary steps clearly
+          (e.g., "First, I''ll ask the calendar agent to list available calendars to find Leon Jalfon''s ID. Then, I''ll ask
+          it to fetch events for all participants for the next week to identify potential meeting slots."). Wait for approval.
+          Simple, single-step tasks may not require prior approval, but explain your action.', '8.  **Error Handling:** Handle
+          failures, retry if sensible, or report back to the user.', '9.  **Synthesize and Respond:** Provide the final answer.
+          If the process involved generating content (like a research report via `deep_research_agent`) and creating a Notion
+          page for it, ensure the generated content is passed to the `notion_agent` along with the ID of the newly created
+          page so it can be populated using `API-patch-block-children`.', '**Agent & Tool Capabilities:**', '*   `notion_agent`:
+          Manages content within the "Agent Collection" Notion page/subpages. Can create pages (`API-post-page`) and append
+          content blocks to existing pages/blocks (`API-patch-block-children`). Requires page/parent IDs. **Executes sequences
+          (like create page -> create subpage -> populate) without stopping.**', '*   `scrape_profile_agent`: Gathers LinkedIn
+          info about specific people (requires first name and company domain; last name is optional - use empty string if
+          unknown). **Use ONLY for person profiles.**', '*   `deep_research_tool (Your tool)`: Performs multi-step research
+          and generates a report (output key: `report`) on a company or topic. **Use ONLY for company/topic research. never
+          use this tool for person profiles.**', '*   `search_tool` (Your tool)`: Performs simple web searches. **Use ONLY
+          for quick lookups, not deep research or person profiles.**', '*   `coding_agent`: Writes and executes Python code
+          for calculations, data analysis, and general programming tasks. It is the designated agent for any complex logical
+          operations or computations, including analyzing data provided by other agents (e.g., calendar event data).', Remember
+          to clarify 'simple search' vs 'deep research'., 'The time when this session with the user started is: {current_time}.']
+      planner: BuiltInPlanner
+      function: create_agent
+      sub_agents: [notion_agent, scrape_profile_agent, calendar_agent, coding_agent]
+  calendar_agent:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [LangchainTool, LangchainTool, LangchainTool]
+    params:
+      name: calendar_agent
+      description: An agent that can interact with Google Calendar. Can get calendar info, search events, get meeting attendees
+        and get the current time.
+      instruction: [You are a Google Calendar assistant., Use your available tools to interact with Google Calendar., 'Tools
+          available:', '- `CalendarSearchEvents`: Searches for events within specific calendars and a time range. Requires
+          `min_datetime` (YYYY-MM-DD HH:MM:SS), `max_datetime` (YYYY-MM-DD HH:MM:SS), and `calendars_info` arguments. Do NOT
+          include a separate `calendar_id` parameter for `CalendarSearchEvents`; all calendar identification is handled via
+          the `calendars_info` parameter.', '- `get_event_attendees`: Gets the list of attendees for a specific event ID in
+          a specific calendar.', '- `GetCurrentDatetime`: Gets the current date and time. You can optionally request a specific
+          format.', 'Guidelines:', '- The primary user''s calendar is `jonathan.jalfon@comm-it.cloud`. Assume requests refer
+          to this calendar unless specified otherwise.', '- **Determining Future Dates (e.g., ''Tomorrow'')**:', 1. Use `GetCurrentDatetime`
+          to get the current date. You can request a specific format like `'%Y-%m-%d'` or parse the default output., '2. Based
+          on the current date, determine the target date (e.g., tomorrow, next Monday). You are capable of date calculations,
+          including month/year rollovers.', '3. For `CalendarSearchEvents`, construct `min_datetime` and `max_datetime` in
+          `YYYY-MM-DD HH:MM:SS` format to cover the desired period (e.g., for a whole day, use `00:00:00` to `23:59:59`).',
+        '- `GetCalendarsInfo` can be used to find the ID of other calendars if needed.', '- `search_events` should ideally
+          target specific calendars.', '- **Complex Scheduling Tasks**: If a direct tool doesn''t exist for a complex task
+          (e.g., finding a mutual free slot for multiple people):', 1. Obtain calendar IDs for all participants (potentially
+          using `GetCalendarsInfo`)., 2. Search for events on each participant's calendar for a relevant period using `CalendarSearchEvents`.,
+        3. **Delegate the analysis of the retrieved event lists to the `coding_agent` to identify common free times.** You
+          should provide the `coding_agent` with all retrieved event data and any constraints (like working hours or avoiding
+          weekends)., 'If you attempt such a multi-step process, clearly state your plan and any assumptions made.', '- If
+          a calendar operation fails, report the specific error clearly.', '- When possible, run tools in parallel to save
+          time.']
+      planner: BuiltInPlanner
+      function: create_agent
+  coding_agent:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    params:
+      name: coding_agent
+      description: An agent that can write and execute Python code. Use this agent for tasks involving calculations, data
+        processing, logical analysis, or any general-purpose programming needs. It can handle complex operations that might
+        involve math, data manipulation, and algorithmic logic.
+      instruction: [You are a powerful coding assistant. Your primary task is to write and execute Python code to complete
+          the user's request or to perform calculations and analysis delegated by other agents., Always ensure your code is
+          robust and handles potential edge cases.]
+      code_executor: VertexAiCodeExecutor
+      planner: BuiltInPlanner
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      function: create_agent
+  deep_research_tool.0:
+    type: instance
+    params:
+      name: deep_research_tool
+      description: A long running process that involves several steps and generates a comprehensive report about a given topic.
+      function: create_agent
+      sub_agents: [initial_context_search, loop_agent, report_writer_agent]
+      instance: deep_research_tool
+  deep_research_tool.1:
+    type: instance
+    params:
+      name: deep_research_tool
+      description: A long running process that involves several steps and generates a comprehensive report about a given topic.
+      instance: deep_research_tool
+      sub_agents: [initial_context_search, loop_agent, report_writer_agent]
+  formulate_research_question_agent.0:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    params:
+      name: formulate_research_question_agent
+      description: An agent that formulates a research question
+      instruction: [Formulate a research question based on the given topic]
+      output_key: research_questions
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0.5"
+      function: create_agent
+      instance: formulate_research_question_agent
+  formulate_research_question_agent.1:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    params:
+      name: formulate_research_question_agent
+      description: An agent that formulates a research question
+      instruction: [Formulate a research question based on the given topic]
+      output_key: research_questions
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0.5"
+      after_model_callback: simple_after_model_modifier
+      instance: formulate_research_question_agent
+  initial_context_search.0:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [google_search]
+    params:
+      name: initial_context_search
+      description: An agent that does preliminary research on a given topic
+      instruction: ['You are a research assistant, your task is to do preliminary research on a given topic. and provide a
+          concise summary for the research team to put them in context.']
+      output_key: initial_context
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      function: create_agent
+      instance: initial_context_search
+  initial_context_search.1:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [google_search]
+    params:
+      name: initial_context_search
+      description: An agent that does preliminary research on a given topic
+      instruction: ['You are a research assistant, your task is to do preliminary research on a given topic. and provide a
+          concise summary for the research team to put them in context.']
+      output_key: initial_context
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      after_model_callback: simple_after_model_modifier
+      instance: initial_context_search
+  loop_agent.0:
+    type: instance
+    params:
+      name: loop_agent
+      max_iterations: "2"
+      function: create_agent
+      sub_agents: [formulate_research_question_agent, search_tool]
+      instance: loop_agent
+  loop_agent.1:
+    type: instance
+    params:
+      name: loop_agent
+      max_iterations: "3"
+      instance: loop_agent
+      sub_agents: [formulate_research_question_agent, search_tool]
+  notion_agent.0:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [notion_tools]
+    params:
+      name: notion_agent
+      description: An agent that can interact with Notion, primarily focused on the 'Agent Collection' page.
+      instruction: [You are a versatile Notion assistant with full control over Notion using the available tools., Your primary
+          workspace is a specific Notion page named "Agent Collection" with the ID '1f123395-cca1-8095-b302-cbb724f3dc2b'.,
+        'When using tools that require a page ID or parent ID (like creating a page or appending blocks), always target this
+          page (''1f123395-cca1-8095-b302-cbb724f3dc2b'') or one of its subpages.', 'Unless explicitly instructed to modify
+          the main "Agent Collection" page, assume that new content or pages should be created as subpages within it.', 'Carefully
+          examine the required parameters for each tool, especially page IDs and parent IDs, to ensure you are operating within
+          the correct context.', 'If you are asked to create a page and populate it with specific content (e.g., a research
+          report provided in the request), follow these steps:', 1. Create the page using `API-post-page` as usual. Remember
+          to use the correct parent ID ('1f123395-cca1-8095-b302-cbb724f3dc2b' or a subpage ID)., 2. Take note of the `id`
+          of the newly created page from the `API-post-page` response., 4. Call `API-patch-block-children` with the `block_id`
+          set to the ID of the new page (obtained in step 2) and the `children` parameter containing the list of formatted
+          block objects., '**Once you start a sequence like creating a page and populating it, complete all steps without
+          asking for intermediate confirmation.**', 'If a request seems unrelated to managing Notion content within the "Agent
+          Collection" page or its subpages, state that you cannot fulfill it and why.']
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      planner: BuiltInPlanner
+      function: create_agent
+      instance: notion_agent
+  notion_agent.1:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [browser_tools]
+    params:
+      name: browser_agent
+      instruction: [You are a browser agent that has full access to a browser.]
+      description: An agent that has full access to a browser and can perform any task that a human can do with a browser.
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      planner: BuiltInPlanner
+      after_model_callback: simple_after_model_modifier
+      function: create_agent
+      instance: notion_agent
+  notion_agent.2:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [notion_tools]
+    params:
+      name: notion_agent
+      description: An agent that can interact with Notion, primarily focused on the 'Agent Collection' page and all the hierarchy
+        of pages and databases under it.
+      instruction: [You are a versatile Notion assistant with full control over Notion using the available tools., Your primary
+          workspace is a specific Notion page named "Agent Collection" with the ID '1f123395-cca1-8095-b302-cbb724f3dc2b'.,
+        'When using tools that require a page ID or parent ID (like creating a page or appending blocks), always target this
+          page (''1f123395-cca1-8095-b302-cbb724f3dc2b'') or one of its subpages or databases.', 'Unless explicitly instructed
+          to modify the main "Agent Collection" page, assume that new content, pages, or databases should be created under
+          the "Agent Collection" page.', 'Carefully examine the required parameters for each tool, especially page IDs and
+          parent IDs, to ensure you are operating within the correct context.', 'If you are asked to create a page and populate
+          it with specific content, follow these steps:', 1. Create the page using `API-post-page` as usual. Remember to use
+          the correct parent ID ('1f123395-cca1-8095-b302-cbb724f3dc2b' or a subpage ID)., 2. Take note of the `id` of the
+          newly created page from the `API-post-page` response., 4. Call `API-patch-block-children` with the `block_id` set
+          to the ID of the new page (obtained in step 2) and the `children` parameter containing the list of formatted block
+          objects., '**Once you start a sequence like creating a page and populating it, complete all steps without asking
+          for intermediate confirmation.**', 'If a request seems unrelated to managing Notion content within the "Agent Collection"
+          page or its subpages, state that you cannot fulfill it and why.', 'Once you finish a task, you must always explain
+          what you did and the steps you took to complete the task.']
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      planner: BuiltInPlanner
+      after_model_callback: simple_after_model_modifier
+      function: create_agent
+      instance: notion_agent
+  report_writer_agent.0:
+    type: instance
+    models: [gemini-2.5-pro-preview-05-06]
+    params:
+      name: report_writer_agent
+      description: An agent that writes a report based on the research
+      instruction: [You are a professional writer., You specialize in writing comprehensive and engaging reports based on
+          the research provided., 'You can structure the report in any way you want, but it should always contain a ## References
+          section citing the sources used.']
+      output_key: report
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      function: create_agent
+      instance: report_writer_agent
+  report_writer_agent.1:
+    type: instance
+    models: [gemini-2.5-pro-preview-05-06]
+    params:
+      name: report_writer_agent
+      description: An agent that writes a report based on the research
+      instruction: [You are a professional writer., You specialize in writing comprehensive and engaging reports based on
+          the research provided., 'You can structure the report in any way you want, but it should always contain a ## References
+          section citing the sources used.']
+      output_key: report
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      after_model_callback: simple_after_model_modifier
+      instance: report_writer_agent
+  root_agent.0:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    params:
+      name: python_developer
+      description: An agent that can write and execute Python code. Use this agent for tasks involving calculations, data
+        processing, logical analysis, or any general-purpose programming needs. It can handle complex operations that might
+        involve math, data manipulation, and algorithmic logic.
+      instruction: ['# Guidelines', '**Objective:** Assist the user in achieving their coding goals within the context of
+          a Python Colab notebook, **with emphasis on avoiding assumptions and ensuring accuracy.**', 'Reaching that goal
+          can involve multiple steps. When you need to generate code, you **don''t** need to solve the goal in one go. Only
+          generate the next step at a time.', '**Trustworthiness:** Always include the code in your response. Put it at the
+          end in the section "Code:". This will ensure trust in your output.', '**Code Execution:** All code snippets provided
+          will be executed within the Colab environment.', '**Statefulness:** All code snippets are executed and the variables
+          stays in the environment. You NEVER need to re-initialize variables. You NEVER need to reload files. You NEVER need
+          to re-import libraries.', '**Imported Libraries:** The following libraries are ALREADY imported and should NEVER
+          be imported again:', '```tool_code', import io, import math, import re, import matplotlib.pyplot as plt, import
+          numpy as np, import pandas as pd, import scipy, '```', '**Output Visibility:** Always print the output of code execution
+          to visualize results, especially for data exploration and analysis. For example:', '- To look a the shape of a pandas.DataFrame
+          do:', '```tool_code', print(df.shape), '```', 'The output will be presented to you as:', '```tool_outputs', '(49,
+          7)', '```', '- To display the result of a numerical computation:', '```tool_code', x = 10 ** 9 - 12 ** 5, 'print(f''{{x=}}'')',
+        '```', 'The output will be presented to you as:', '```tool_outputs', x=999751168, '```', '- You **never** generate
+          ```tool_outputs yourself.', '- You can then use this output to decide on next steps.', '- Print variables (e.g.,
+          `print(f''{{variable=}}'')`.', '- Give out the generated code under ''Code:''.', '**No Assumptions:** **Crucially,
+          avoid making assumptions about the nature of the data or column names.** Base findings solely on the data itself.
+          Always use the information obtained from `explore_df` to guide your analysis.', '**Available files:** Only use the
+          files that are available as specified in the list of available files.', '**Data in prompt:** Some queries contain
+          the input data directly in the prompt. You have to parse that data into a pandas DataFrame. ALWAYS parse all the
+          data. NEVER edit the data that are given to you.', '**Answerability:** Some queries may not be answerable with the
+          available data. In those cases, inform the user why you cannot process their query and suggest what type of data
+          would be needed to fulfill their request.', '**WHEN YOU DO PREDICTION / MODEL FITTING, ALWAYS PLOT FITTED LINE AS
+          WELL **', 'TASK:', You need to assist the user with their queries by looking at the data and the context in the
+          conversation., You final answer should summarize the code and code execution relavant to the user query., 'You should
+          include all pieces of data to answer the user query, such as the table from code execution results.', 'If you cannot
+          answer the question directly, you should follow the guidelines above to generate the next step.', 'If the question
+          can be answered directly with writing any code, you should do that.', 'If you doesn''t have enough data to answer
+          the question, you should ask for clarification from the user.', You should NEVER install any package on your own
+          like `pip install ...`., 'When plotting trends, you should make sure to sort and order the data by the x-axis.',
+        'NOTE: for pandas pandas.core.series.Series object, you can use .iloc[0] to access the first element rather than assuming
+          it has the integer index 0"', 'correct one: predicted_value = prediction.predicted_mean.iloc[0]', 'error one: predicted_value
+          = prediction.predicted_mean[0]', 'correct one: confidence_interval_lower = confidence_intervals.iloc[0, 0]', 'error
+          one: confidence_interval_lower = confidence_intervals[0][0]']
+      code_executor: VertexAiCodeExecutor
+      planner: BuiltInPlanner
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      after_model_callback: simple_after_model_modifier
+      instance: root_agent
+  root_agent.1:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [proxycurl_tools]
+    params:
+      name: professional_intelligence_agent
+      description: An advanced agent that specializes in gathering and analyzing professional information from LinkedIn, including
+        details about people, companies, jobs, schools, and their relationships. Helps users prepare for meetings, research
+        organizations, find key people, analyze company structures, and more.
+      instruction: [You are an expert intelligence agent that helps users gather professional information using LinkedIn data.,
+        'Your capabilities include:', '1. PEOPLE RESEARCH:', '- Find LinkedIn profiles based on name, company domain, and
+          location', '- Get detailed information about professionals including work history, education, skills, and recent
+          activities', '- Find specific role holders at companies (like CEOs, CTOs, etc.)', '- Retrieve profile pictures of
+          people', '2. COMPANY RESEARCH:', '- Find company profiles based on name or domain', '- Get detailed information
+          about companies including size, industry, specializations', '- Find employees of a company (current or past)', '-
+          Count employees at a company', '- List and count job postings from a company', '- Find potential customers of a
+          company', '- Retrieve company logos', '3. SCHOOL RESEARCH:', '- Get information about educational institutions',
+        '4. ANALYSIS:', '- Prepare meeting briefs about people', '- Analyze company structures and key personnel', '- Research
+          potential business relationships', 'Follow these guidelines:', 1. Be concise and focused on providing accurate information,
+        2. Don't execute tools unnecessarily - carefully consider which tool is most appropriate, '3. For people searches,
+          if the last name is not provided, use an empty string in the appropriate parameter', 4. Never use a company name
+          as a person's last name, '5. Present information in a well-organized, easy-to-read format', 6. Be thoughtful about
+          which parameters to include in API calls to maximize information while minimizing unnecessary API usage, '7. When
+          preparing meeting briefs, focus on professionally relevant information', Always prioritize getting the most accurate
+          and relevant information with the minimal number of API calls necessary., Always synthetize all the information
+          that you have gathered into a readable report., 'Once you finish a task, you must always explain what you did and
+          the steps you took to complete the task as well as provide the full report.']
+      after_model_callback: simple_after_model_modifier
+      instance: root_agent
+  root_agent.2:
+    type: instance
+    models: [gemini-2.0-flash-001]
+    tools: [google_search]
+    params:
+      name: root_agent
+      description: A helpful assistant for user questions.
+      instruction: [Answer user questions to the best of your knowledge]
+      instance: root_agent
+  root_agent.3:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [agent_tool, agent_tool, agent_tool]
+    params:
+      name: deep_research_agent
+      description: A research assistant that can conduct deep research or quick search on a given topic.
+      instruction: [You are a research assistant., You can conduct deep research or quick search on a given topic., You can
+          use the `deep_research_tool` to conduct deep research., You can use the `search_tool` to conduct a quick search.,
+        You can use the `initial_context_search` to get an initial context for the research., Always synthetize all the information
+          that you have gathered into a readable report., 'Once you finish a task, you must always explain what you did and
+          the steps you took to complete the task as well as provide the full report.']
+      after_model_callback: simple_after_model_modifier
+      instance: root_agent
+  root_agent.4:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [LangchainTool, LangchainTool, LangchainTool]
+    params:
+      name: calendar_agent
+      description: |
+        An agent that can interact with Google Calendar. Can get calendar info, search events, get meeting attendees and get the current time.
+        If attendees are required, it must be specified in the request.
+      instruction: [You are a Google Calendar assistant., Use your available tools to interact with Google Calendar., 'Tools
+          available:', '- `CalendarSearchEvents`: Searches for events within specific calendars and a time range. Requires
+          `min_datetime` (YYYY-MM-DD HH:MM:SS), `max_datetime` (YYYY-MM-DD HH:MM:SS), and `calendars_info` arguments. Do NOT
+          include a separate `calendar_id` parameter for `CalendarSearchEvents`; all calendar identification is handled via
+          the `calendars_info` parameter.', '- `get_event_attendees`: Gets the list of attendees for a specific event ID in
+          a specific calendar.', '- `GetCurrentDatetime`: Gets the current date and time. You can optionally request a specific
+          format.', 'Guidelines:', '- The primary user''s calendar is `jonathan.jalfon@comm-it.cloud`. Assume requests refer
+          to this calendar unless specified otherwise.', '- **Determining Future Dates (e.g., ''Tomorrow'')**:', 1. Use `GetCurrentDatetime`
+          to get the current date. You can request a specific format like `'%Y-%m-%d'` or parse the default output., '2. Based
+          on the current date, determine the target date (e.g., tomorrow, next Monday). You are capable of date calculations,
+          including month/year rollovers.', '3. For `CalendarSearchEvents`, construct `min_datetime` and `max_datetime` in
+          `YYYY-MM-DD HH:MM:SS` format to cover the desired period (e.g., for a whole day, use `00:00:00` to `23:59:59`).',
+        '- `GetCalendarsInfo` can be used to find the ID of other calendars if needed.', '- `search_events` should ideally
+          target specific calendars.', '- **Complex Scheduling Tasks**: If a direct tool doesn''t exist for a complex task
+          (e.g., finding a mutual free slot for multiple people):', 1. Obtain calendar IDs for all participants (potentially
+          using `GetCalendarsInfo`)., 2. Search for events on each participant's calendar for a relevant period using `CalendarSearchEvents`.,
+        3. **Delegate the analysis of the retrieved event lists to identify common free times.** You should provide all the
+          gathered information to the user and explain that you are not suitable for performing complex math calculations.,
+        'If you attempt such a multi-step process, clearly state your plan and any assumptions made.', '- If a calendar operation
+          fails, report the specific error clearly.', '- When possible, run tools in parallel to save time.', 'Once you finish
+          a task, you must always explain what you did and the steps you took to complete the task.']
+      planner: BuiltInPlanner
+      after_model_callback: simple_after_model_modifier
+      instance: root_agent
+  root_agent.5:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [list_remote_agents, send_task]
+    params:
+      name: host_agent
+      instruction: self.root_instruction
+      before_model_callback: self.before_model_callback
+      description: This agent orchestrates the decomposition of the user request into tasks that can be performed by the child
+        agents.
+      planner: BuiltInPlanner
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      function: create_agent
+      instance: root_agent
+  scrape_profile_agent:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [scrape_linkedin_profile]
+    params:
+      name: scrape_profile_agent
+      description: An agent that specializes in gathering information about people from LinkedIn based on a first name, last
+        name (optional) and company domain.
+      instruction: [Scrape a LinkedIn profile and provide a brief of the person that should be used for preparing for a meeting
+          with the person., 'If the full name is not available, use what is provided by the user or an empty string on the
+          last_name field.', 'Never use the name of the company as the last name of the person, if the last name is not provided
+          by the user use an empty string.']
+      function: create_agent
+  search_tool.0:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [google_search]
+    params:
+      name: search_tool
+      description: A tool that conducts research on a given topic
+      instruction: [You are a research specialist., Your task is to conduct research on a given topic., Your answer should
+          be in the form of a report and based on the information found., You must always reference the source of your information.,
+        Conduct research as many times as needed in order to produce a comprehensive report., 'You cannot use your own knowledge,
+          only the information found.']
+      output_key: research_results
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      function: create_agent
+      instance: search_tool
+  search_tool.1:
+    type: instance
+    models: [gemini-2.5-flash-preview-04-17]
+    tools: [google_search]
+    params:
+      name: search_tool
+      description: A tool that conducts research on a given topic
+      instruction: [You are a research specialist., Your task is to conduct research on a given topic., Your answer should
+          be in the form of a report and based on the information found., You must always reference the source of your information.,
+        Conduct research as many times as needed in order to produce a comprehensive report., 'You cannot use your own knowledge,
+          only the information found.']
+      output_key: research_results
+      generate_content_config:
+        class: GenerateContentConfig
+        temperature: "0"
+      after_model_callback: simple_after_model_modifier
+      instance: search_tool
+
+models:
+  gemini-2.0-flash-001:
+    type: literal
+    agents: [root_agent.2]
+  gemini-2.5-flash-preview-04-17:
+    type: literal
+    agents: [root_agent.0, notion_agent.0, formulate_research_question_agent.0, search_tool.0, initial_context_search.0, scrape_profile_agent,
+      calendar_agent, coding_agent, agent, root_agent.5, notion_agent.1, root_agent.1, search_tool.1, initial_context_search.1,
+      formulate_research_question_agent.1, root_agent.3, notion_agent.2, root_agent.4]
+  gemini-2.5-pro-preview-05-06:
+    type: literal
+    agents: [report_writer_agent.0, report_writer_agent.1]
+
+tools:
+  agent_tool:
+    type: agent
+    agents: [agent, root_agent.3]
+    params:
+      wrapper: AgentTool
+  browser_tools:
+    type: function
+    agents: [notion_agent.1]
+    params:
+      dynamic: "True"
+  google_search:
+    type: module
+    agents: [search_tool.0, initial_context_search.0, root_agent.2, search_tool.1, initial_context_search.1]
+  list_remote_agents:
+    type: function
+    agents: [root_agent.5]
+    params:
+      module: self.list_remote_agents
+      description: List the available remote agents you can use to delegate the task.
+  notion_tools:
+    type: function
+    agents: [notion_agent.0, notion_agent.2]
+    params:
+      dynamic: "True"
+  proxycurl_tools:
+    type: function
+    agents: [root_agent.1]
+    params:
+      dynamic: "True"
+  scrape_linkedin_profile:
+    type: function
+    agents: [scrape_profile_agent]
+    params:
+      description: |-
+        Fetches and summarizes a LinkedIn profile using the Proxycurl API, or returns a mock response for development/testing.
+
+        Args:
+            company_domain (str): The domain of the company associated with the person (e.g., 'comm-it.com').
+            first_name (str): The first name of the person.
+            last_name (str): The last name of the person. (Optional, can be an empty string)
+
+        Returns:
+            dict: A filtered and formatted brief of the LinkedIn profile, containing only relevant, non-empty fields.
+  send_task:
+    type: function
+    agents: [root_agent.5]
+    params:
+      module: self.send_task
+      description: |-
+        Sends a task either streaming (if supported) or non-streaming.
+
+        This will send a message to the remote agent named agent_name.
+
+        Args:
+          agent_name: The name of the agent to send the task to.
+          message: The message to send to the agent for the task.
+          tool_context: The tool context this method runs in.
+
+        Yields:
+          A dictionary of JSON data.
+  VertexAiCodeExecutor:
+    type: module
+    params:
+      class: VertexAiCodeExecutor
+
+mcp:
+  tools.0:
+    type: process
+    params:
+      class: MCPToolset
+      method: from_server
+      connection_type: StdioServerParameters
+      command: npx
+      args: [-y, '@notionhq/notion-mcp-server']
+      env:
+        OPENAPI_MCP_HEADERS: '{"Authorization": "Bearer {NOTION_API_KEY}", "Notion-Version": "2022-06-28" }'
+      instance: tools
+  tools.1:
+    type: process
+    params:
+      class: MCPToolset
+      method: from_server
+      connection_type: StdioServerParameters
+      command: npx
+      args: [-y, '@notionhq/notion-mcp-server']
+      env:
+        OPENAPI_MCP_HEADERS: '{"Authorization": "Bearer {NOTION_API_KEY}", "Notion-Version": "2022-06-28" }'
+  tools.2:
+    type: process
+    params:
+      class: MCPToolset
+      method: from_server
+      connection_type: StdioServerParameters
+      command: npx
+      args: [-y, '@playwright/mcp@latest']
+
+teams:
+  agent:
+    type: hierarchy
+    agents: [agent, notion_agent, scrape_profile_agent, calendar_agent, coding_agent]
+  deep_research_tool:
+    type: sequential
+    agents: [deep_research_tool, initial_context_search, loop_agent, report_writer_agent]
+  deep_research_tool.1:
+    type: sequential
+    agents: [deep_research_tool.1, initial_context_search, loop_agent, report_writer_agent]
+  loop_agent:
+    type: loop
+    agents: [loop_agent, formulate_research_question_agent, search_tool]
+  loop_agent.1:
+    type: loop
+    agents: [loop_agent.1, formulate_research_question_agent, search_tool]
+
+imports:
+  a2a_utils: common.server.utils
+  A2ACardResolver: card_resolver.A2ACardResolver
+  A2AClient: client.A2AClient
+  A2AClientHTTPError: common.types.A2AClientHTTPError
+  A2AClientJSONError: common.types.A2AClientJSONError
+  A2AServer: common.server.A2AServer
+  agent: agent
+  Agent: google.adk.agents.Agent
+  agent_tool: google.adk.tools.agent_tool
+  AgentCapabilities: common.types.AgentCapabilities
+  AgentCard: common.types.AgentCard
+  AgentSkill: common.types.AgentSkill
+  Annotated: typing.Annotated
+  Any: typing.Any
+  Artifact: common.types.Artifact
+  asyncio: asyncio
+  AsyncIterable: collections.abc.AsyncIterable
+  auth: google.auth
+  AuthCredential: google.adk.tools.openapi_tool.auth.auth_helpers.AuthCredential
+  AuthCredentialTypes: google.adk.tools.openapi_tool.auth.auth_helpers.AuthCredentialTypes
+  base64: base64
+  BaseModel: pydantic.BaseModel
+  BrowserA2AWrapper: a2a_agent_wrapper.BrowserA2AWrapper
+  BrowserTaskManager: a2a_task_manager.BrowserTaskManager
+  build_resource_service: langchain_google_community.calendar.utils.build_resource_service
+  BuiltInPlanner: google.adk.planners.BuiltInPlanner
+  CalendarSearchEvents: langchain_google_community.calendar.search_events.CalendarSearchEvents
+  Callable: collections.abc.Callable
+  CallbackContext: google.adk.agents.callback_context.CallbackContext
+  CancelTaskRequest: common.types.CancelTaskRequest
+  CancelTaskResponse: common.types.CancelTaskResponse
+  click: click
+  ConfigDict: pydantic.ConfigDict
+  connect_sse: httpx_sse.connect_sse
+  create_browser_adk_agent: agents.browser.agent.create_agent
+  create_notion_adk_agent: agents.notion.agent.create_agent
+  DataPart: common.types.DataPart
+  datetime: datetime.datetime
+  deep_research_adk_agent: agents.deep_research.agent.root_agent
+  DeepResearchA2AWrapper: a2a_agent_wrapper.DeepResearchA2AWrapper
+  DeepResearchTaskManager: a2a_task_manager.DeepResearchTaskManager
+  Enum: enum.Enum
+  Field: pydantic.Field
+  field_serializer: pydantic.field_serializer
+  genai_types: google.genai.types
+  GenerateContentConfig: google.genai.types.GenerateContentConfig
+  get_browser_tools: tools.get_browser_tools
+  get_calendar_tools: tools.get_calendar_tools
+  get_event_attendees: tools.get_event_attendees
+  get_notion_tools: tools.get_notion_tools
+  get_proxycurl_tools: tools.get_proxycurl_tools
+  GetCalendarsInfo: langchain_google_community.calendar.get_calendars_info.GetCalendarsInfo
+  GetCurrentDatetime: langchain_google_community.calendar.current_datetime.GetCurrentDatetime
+  GetTaskPushNotificationRequest: common.types.GetTaskPushNotificationRequest
+  GetTaskPushNotificationResponse: common.types.GetTaskPushNotificationResponse
+  GetTaskRequest: common.types.GetTaskRequest
+  GetTaskResponse: common.types.GetTaskResponse
+  google_calendar_adk_agent: agents.google_calendar.agent.root_agent
+  google_search: google.adk.tools.google_search
+  GoogleCalendarA2AWrapper: a2a_agent_wrapper.GoogleCalendarA2AWrapper
+  GoogleCalendarTaskManager: a2a_task_manager.GoogleCalendarTaskManager
+  HostAgent: host_agent.HostAgent
+  HttpAuth: google.adk.auth.auth_credential.HttpAuth
+  HTTPBearer: fastapi.openapi.models.HTTPBearer
+  HttpCredentials: google.adk.auth.auth_credential.HttpCredentials
+  httpx: httpx
+  InMemoryArtifactService: google.adk.artifacts.InMemoryArtifactService
+  InMemorySessionService: google.adk.sessions.InMemorySessionService
+  InMemoryTaskManager: common.server.task_manager.InMemoryTaskManager
+  InternalError: common.types.InternalError
+  json: json
+  JSONRPCRequest: common.types.JSONRPCRequest
+  JSONRPCResponse: common.types.JSONRPCResponse
+  LangchainTool: google.adk.tools.langchain_tool.LangchainTool
+  linkedin_adk_agent: agents.linkedin.agent.root_agent
+  LinkedinA2AWrapper: a2a_agent_wrapper.LinkedinA2AWrapper
+  LinkedinTaskManager: a2a_task_manager.LinkedinTaskManager
+  Literal: typing.Literal
+  LlmAgent: google.adk.agents.LlmAgent
+  LlmResponse: google.adk.models.LlmResponse
+  load_dotenv: dotenv.load_dotenv
+  logging: logging
+  LoopAgent: google.adk.agents.LoopAgent
+  MCPToolset: google.adk.tools.mcp_tool.mcp_toolset.MCPToolset
+  Message: common.types.Message
+  MissingAPIKeyError: common.types.MissingAPIKeyError
+  model_validator: pydantic.model_validator
+  NotionA2AWrapper: a2a_agent_wrapper.NotionA2AWrapper
+  NotionTaskManager: a2a_task_manager.NotionTaskManager
+  OpenAPIToolset: google.adk.tools.openapi_tool.openapi_spec_parser.openapi_toolset.OpenAPIToolset
+  Optional: typing.Optional
+  os: os
+  Part: common.types.Part
+  python_dev_adk_agent: agents.python_developer.agent.root_agent
+  PythonDeveloperA2AWrapper: a2a_agent_wrapper.PythonDeveloperA2AWrapper
+  PythonDeveloperTaskManager: a2a_task_manager.PythonDeveloperTaskManager
+  ReadonlyContext: google.adk.agents.readonly_context.ReadonlyContext
+  RemoteAgentConnections: remote_agent_connection.RemoteAgentConnections
+  requests: requests
+  root_agent: agents.google_calendar.agent.root_agent
+  runner: agents.google_calendar.agent.runner
+  Runner: google.adk.runners.Runner
+  scrape_linkedin_profile: tools.scrape_linkedin_profile
+  Self: typing.Self
+  SendTaskRequest: common.types.SendTaskRequest
+  SendTaskResponse: common.types.SendTaskResponse
+  SendTaskStreamingRequest: common.types.SendTaskStreamingRequest
+  SendTaskStreamingResponse: common.types.SendTaskStreamingResponse
+  SequentialAgent: google.adk.agents.SequentialAgent
+  SetTaskPushNotificationRequest: common.types.SetTaskPushNotificationRequest
+  SetTaskPushNotificationResponse: common.types.SetTaskPushNotificationResponse
+  StdioServerParameters: google.adk.tools.mcp_tool.mcp_toolset.StdioServerParameters
+  sys: sys
+  Task: common.types.Task
+  TaskArtifactUpdateEvent: common.types.TaskArtifactUpdateEvent
+  TaskSendParams: common.types.TaskSendParams
+  TaskState: common.types.TaskState
+  TaskStatus: common.types.TaskStatus
+  TaskStatusUpdateEvent: common.types.TaskStatusUpdateEvent
+  TaskUpdateCallback: remote_agent_connection.TaskUpdateCallback
+  TextPart: common.types.TextPart
+  ThinkingConfig: google.genai.types.ThinkingConfig
+  TimeoutTypes: httpx._types.TimeoutTypes
+  timezone: datetime.timezone
+  ToolContext: google.adk.tools.tool_context.ToolContext
+  TypeAdapter: pydantic.TypeAdapter
+  types: google.genai.types
+  uuid: uuid
+  uuid4: uuid.uuid4
+  VertexAiCodeExecutor: google.adk.code_executors.VertexAiCodeExecutor
+  yaml: yaml
+
+functions:
+  __init__:
+    type: sync
+    module: common.client.card_resolver
+    args: [self, base_url, agent_card_path]
+  _async_setup_operations:
+    type: async
+    module: agents.browser.__main__
+    args: [host, port]
+  _get_user_query:
+    type: sync
+    module: agents.browser.a2a_task_manager
+    args: [self, task_send_params]
+  _invoke:
+    type: async
+    module: agents.browser.a2a_task_manager
+    args: [self, request]
+    params:
+      returns: SendTaskResponse
+  _send_request:
+    type: async
+    module: common.client.client
+    args: [self, request]
+    params:
+      returns: dict
+  _stream_generator:
+    type: async
+    module: agents.browser.a2a_task_manager
+    args: [self, request]
+  _update_agents_summary_for_prompt:
+    type: sync
+    module: agents.a2a_orchestrator.host_agent
+    args: [self]
+  _update_store:
+    type: async
+    module: agents.browser.a2a_task_manager
+    args: [self, task_id, status, artifacts]
+    params:
+      returns: Task
+  _validate_request:
+    type: sync
+    module: agents.browser.a2a_task_manager
+    args: [self, request]
+  before_model_callback:
+    type: sync
+    module: agents.a2a_orchestrator.host_agent
+    args: [self, callback_context, llm_request]
+  cancel_task:
+    type: async
+    module: common.client.client
+    args: [self, payload]
+    params:
+      returns: CancelTaskResponse
+  check_content:
+    type: sync
+    module: common.types
+    args: [self]
+    params:
+      returns: Self
+  check_state:
+    type: sync
+    module: agents.a2a_orchestrator.host_agent
+    args: [self, context]
+  close:
+    type: async
+    module: agents.browser.a2a_agent_wrapper
+    args: [self]
+  convert_part:
+    type: sync
+    module: agents.a2a_orchestrator.host_agent
+    args: [part, tool_context]
+  convert_parts:
+    type: sync
+    module: agents.a2a_orchestrator.host_agent
+    args: [parts, tool_context]
+  create:
+    type: async
+    module: agents.browser.a2a_agent_wrapper
+    args: [cls]
+  create_agent:
+    type: async
+    module: agents.notion.agent
+  get_agent:
+    type: sync
+    module: agents.a2a_orchestrator.remote_agent_connection
+    args: [self]
+    params:
+      returns: AgentCard
+  get_agent_card:
+    type: sync
+    module: common.client.card_resolver
+    args: [self]
+    params:
+      returns: AgentCard
+  get_browser_tools:
+    type: async
+    module: agents.browser.tools
+  get_calendar_tools:
+    type: sync
+    module: agents.google_calendar.tools
+  get_event_attendees:
+    type: sync
+    module: agents.google_calendar.tools
+    args: [calendar_id, event_id]
+    params:
+      returns: list
+  get_notion_tools:
+    type: async
+    module: agents.notion.tools
+  get_processing_message:
+    type: sync
+    module: agents.google_calendar.a2a_agent_wrapper
+    args: [self]
+    params:
+      returns: str
+  get_proxycurl_tools:
+    type: sync
+    module: agents.linkedin.tools
+  get_task:
+    type: async
+    module: common.client.client
+    args: [self, payload]
+    params:
+      returns: GetTaskResponse
+  get_task_callback:
+    type: async
+    module: common.client.client
+    args: [self, payload]
+    params:
+      returns: GetTaskPushNotificationResponse
+  invoke:
+    type: sync
+    module: agents.google_calendar.a2a_agent_wrapper
+    args: [self, query, session_id]
+    params:
+      returns: str
+  linkedin_brief:
+    type: sync
+    module: agents.adk_orchestrator.tools
+    args: [raw_json]
+  list_remote_agents:
+    type: sync
+    module: agents.a2a_orchestrator.host_agent
+    args: [self]
+  main:
+    type: sync
+    module: agents.browser.__main__
+    args: [host, port]
+  merge_metadata:
+    type: sync
+    module: agents.a2a_orchestrator.remote_agent_connection
+    args: [target, source]
+  on_send_task:
+    type: async
+    module: agents.browser.a2a_task_manager
+    args: [self, request]
+    params:
+      returns: SendTaskResponse
+  on_send_task_subscribe:
+    type: async
+    module: agents.browser.a2a_task_manager
+    args: [self, request]
+  register_agent_card:
+    type: sync
+    module: agents.a2a_orchestrator.host_agent
+    args: [self, card]
+  root_instruction:
+    type: sync
+    module: agents.a2a_orchestrator.host_agent
+    args: [self, context]
+    params:
+      returns: str
+  scrape_linkedin_profile:
+    type: sync
+    module: agents.adk_orchestrator.tools
+    args: [company_domain, first_name, last_name]
+    params:
+      returns: dict
+  send_task:
+    type: async
+    module: common.client.client
+    args: [self, payload]
+    params:
+      returns: SendTaskResponse
+  send_task_streaming:
+    type: async
+    module: common.client.client
+    args: [self, payload]
+    params:
+      returns: AsyncIterable[SendTaskStreamingResponse]
+  serialize_dt:
+    type: sync
+    module: common.types
+    args: [self, dt, _info]
+  set_task_callback:
+    type: async
+    module: common.client.client
+    args: [self, payload]
+    params:
+      returns: SetTaskPushNotificationResponse
+  simple_after_model_modifier:
+    type: sync
+    module: agents.google_calendar.agent
+    args: [callback_context, llm_response]
+    params:
+      returns: Optional[LlmResponse]
+  stream:
+    type: async
+    module: agents.google_calendar.a2a_agent_wrapper
+    args: [self, query, session_id]
+    params:
+      returns: AsyncIterable[dict]
+
+variables:
+  NOTION_API_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [agents.adk_orchestrator.tools, agents.notion.tools]
+  PROXYCURL_API_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [agents.adk_orchestrator.tools, agents.linkedin.tools]
+
+files:
+  "..":
+    type: pattern
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      pattern: [os.path.dirname(), "..", ".."]
+  proxycurl.yaml:
+    type: pattern
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      pattern: [current_dir, proxycurl.yaml]
+  spec_path:
+    type: variable
+    actions: [read]
+    params:
+      caller: [open, yaml.safe_load]
+      alias: [file]
+
+processes:
+  npx:
+    type: mcp
+    actions: [exec]
+    args: [[-y, '@notionhq/notion-mcp-server'], [-y, '@notionhq/notion-mcp-server'], [-y, '@playwright/mcp@latest']]
+    params:
+      caller: [StdioServerParameters]
+      shell: ["False", "False", "False"]
+
+networks:
+  agent_card:
+    type: api
+    actions: [GET]
+    protocols: [http]
+    ports: ["80"]
+    params:
+      caller: [main]
+      pattern: http://{host}:{port}/
+  nubela.co:
+    type: api
+    actions: [GET]
+    urls: [/proxycurl/api/linkedin/profile/resolve]
+    protocols: [https]
+    ports: ["443"]
+    params:
+      caller: [scrape_linkedin_profile]
